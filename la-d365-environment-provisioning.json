@@ -1,0 +1,658 @@
+{
+  "accessEndpoint": "https://prod-17.northeurope.logic.azure.com:443/workflows/5e5720a8fe704a778f0a202130b659b8",
+  "changedTime": "2025-11-21T20:07:49.3760037Z",
+  "createdTime": "2025-10-29T13:56:26.2693661Z",
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Condition_1_(Status_=_Approved_AND_Deployment_Status_=_Ready_for_Deployment)": {
+        "actions": {
+          "Deploy_Hub_to_Spoke_Peering": {
+            "inputs": {
+              "body": {
+                "properties": {
+                  "mode": "Incremental",
+                  "parameters": {
+                    "hubVnetName": {
+                      "value": "vnet-lebara-security-hub"
+                    },
+                    "peeringName": {
+                      "value": "hub-to-@{triggerBody()?['VNet_x0020_Name']}"
+                    },
+                    "spokeVnetId": {
+                      "value": "@{body('Deploy_VNet_and_Peering')?['properties']?['outputs']?['vnetResourceId']?['value']}"
+                    }
+                  },
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "hubVnetName": {
+                        "type": "string"
+                      },
+                      "peeringName": {
+                        "type": "string"
+                      },
+                      "spokeVnetId": {
+                        "type": "string"
+                      }
+                    },
+                    "resources": [
+                      {
+                        "apiVersion": "2024-01-01",
+                        "name": "[concat(parameters('hubVnetName'), '/', parameters('peeringName'))]",
+                        "properties": {
+                          "allowForwardedTraffic": true,
+                          "allowGatewayTransit": true,
+                          "allowVirtualNetworkAccess": true,
+                          "remoteVirtualNetwork": {
+                            "id": "[parameters('spokeVnetId')]"
+                          },
+                          "useRemoteGateways": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                      }
+                    ]
+                  }
+                }
+              },
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['arm-2']['connectionId']"
+                }
+              },
+              "method": "put",
+              "path": "/subscriptions/@{encodeURIComponent('8cc0a954-47fb-4878-a768-e195dbd036b7')}/resourcegroups/@{encodeURIComponent('rg-lebara-security-hub-northeurope')}/providers/Microsoft.Resources/deployments/@{encodeURIComponent('hub-to-spoke-peering')}",
+              "queries": {
+                "wait": true,
+                "x-ms-api-version": "2016-06-01"
+              }
+            },
+            "runAfter": {
+              "Deploy_VNet_and_Peering": [
+                "Succeeded"
+              ]
+            },
+            "type": "ApiConnection"
+          },
+          "Deploy_NSG_and_Associate": {
+            "inputs": {
+              "body": {
+                "properties": {
+                  "mode": "Incremental",
+                  "parameters": {
+                    "vnetName": {
+                      "value": "@triggerBody()?['VNet_x0020_Name']"
+                    }
+                  },
+                  "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                      "location": {
+                        "defaultValue": "northeurope",
+                        "type": "string"
+                      },
+                      "vnetName": {
+                        "type": "string"
+                      }
+                    },
+                    "resources": [
+                      {
+                        "apiVersion": "2023-04-01",
+                        "location": "[parameters('location')]",
+                        "name": "[variables('nsgName')]",
+                        "properties": {
+                          "securityRules": [
+                            {
+                              "name": "AllowHTTPS",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "443",
+                                "direction": "Inbound",
+                                "priority": 110,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefixes": [
+                                  "1.2.3.4",
+                                  "5.6.7.8"
+                                ],
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-1",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 120,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "191.239.20.104",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-2",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 121,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "40.76.5.241",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-3",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 122,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "40.112.209.123",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-4",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 123,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "40.121.208.21",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-5",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 124,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "40.118.145.241",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-6",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 125,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "20.253.188.249",
+                                "sourcePortRange": "*"
+                              }
+                            },
+                            {
+                              "name": "AllowWinRM-MS-7",
+                              "properties": {
+                                "access": "Allow",
+                                "destinationAddressPrefix": "*",
+                                "destinationPortRange": "5986",
+                                "direction": "Inbound",
+                                "priority": 126,
+                                "protocol": "Tcp",
+                                "sourceAddressPrefix": "172.191.225.240",
+                                "sourcePortRange": "*"
+                              }
+                            }
+                          ]
+                        },
+                        "type": "Microsoft.Network/networkSecurityGroups"
+                      },
+                      {
+                        "apiVersion": "2023-04-01",
+                        "dependsOn": [
+                          "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                        ],
+                        "location": "[parameters('location')]",
+                        "name": "[concat(parameters('vnetName'), '/', variables('subnetName'))]",
+                        "properties": {
+                          "addressPrefix": "10.x.x.x",
+                          "networkSecurityGroup": {
+                            "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                          }
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                      }
+                    ],
+                    "variables": {
+                      "nsgName": "[concat('nsg-', parameters('vnetName'))]",
+                      "subnetName": "default"
+                    }
+                  }
+                }
+              },
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['arm-2']['connectionId']"
+                }
+              },
+              "method": "put",
+              "path": "/subscriptions/@{encodeURIComponent('8cc0a954-47fb-4878-a768-e195dbd036b7')}/resourcegroups/@{encodeURIComponent('rg-lebara-d365-networking')}/providers/Microsoft.Resources/deployments/@{encodeURIComponent(concat('nsg-deploy-', utcNow('yyyyMMddHHmmss')))}",
+              "queries": {
+                "wait": true,
+                "x-ms-api-version": "2016-06-01"
+              }
+            },
+            "runAfter": {
+              "Deploy_Hub_to_Spoke_Peering": [
+                "Succeeded"
+              ]
+            },
+            "type": "ApiConnection"
+          },
+          "Deploy_VNet_and_Peering": {
+            "inputs": {
+              "body": {
+                "properties": {
+                  "mode": "Incremental",
+                  "parameters": {
+                    "addressPrefix": {
+                      "value": "@triggerBody()?['Allocated_x0020_IP_x0020_Address']"
+                    },
+                    "hubVnetId": {
+                      "value": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-security-hub-northeurope/providers/Microsoft.Network/virtualNetworks/vnet-lebara-security-hub"
+                    },
+                    "location": {
+                      "value": "North Europe"
+                    },
+                    "vnetName": {
+                      "value": "@triggerBody()?['VNet_x0020_Name']"
+                    }
+                  },
+                  "templateLink": {
+                    "uri": "https://erpautomationtemplates.blob.core.windows.net/arm-templates/vnet-deployment.json"
+                  }
+                }
+              },
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['arm-2']['connectionId']"
+                }
+              },
+              "method": "put",
+              "path": "/subscriptions/@{encodeURIComponent('8cc0a954-47fb-4878-a768-e195dbd036b7')}/resourcegroups/@{encodeURIComponent('rg-lebara-d365-networking')}/providers/Microsoft.Resources/deployments/@{encodeURIComponent(concat('deploy-', utcNow('yyyyMMddHHmmss')))}",
+              "queries": {
+                "wait": true,
+                "x-ms-api-version": "2016-06-01"
+              }
+            },
+            "type": "ApiConnection"
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@triggerBody()?['Status']?['Value']",
+                "Approved"
+              ]
+            },
+            {
+              "equals": [
+                "@triggerBody()?['Deployment_x0020_Status']?['Value']",
+                "Ready for Deployment"
+              ]
+            }
+          ]
+        },
+        "runAfter": {},
+        "type": "If"
+      },
+      "Condition_2_-_Check_Deployment_Success": {
+        "actions": {
+          "Send_Deployment_Success_Email": {
+            "inputs": {
+              "authentication": {
+                "audience": "https://graph.microsoft.com",
+                "type": "ManagedServiceIdentity"
+              },
+              "body": {
+                "message": {
+                  "body": {
+                    "content": "<p>Network infrastructure provisioned successfully. NSG has been created and associated (Strictly Hardened).</p>",
+                    "contentType": "HTML"
+                  },
+                  "from": {
+                    "emailAddress": {
+                      "address": "infra.automation@lebara.com",
+                      "name": "Infrastructure Automation"
+                    }
+                  },
+                  "subject": " Network Ready: Deploy Your CHE",
+                  "toRecipients": [
+                    {
+                      "emailAddress": {
+                        "address": "@triggerBody()?['Author']?['Email']"
+                      }
+                    }
+                  ]
+                },
+                "saveToSentItems": false
+              },
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "method": "POST",
+              "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail"
+            },
+            "runAfter": {
+              "Update_Request_-_Deployment_Completed": [
+                "Succeeded"
+              ]
+            },
+            "type": "Http"
+          },
+          "Update_Request_-_Deployment_Completed": {
+            "inputs": {
+              "body": {
+                "Deployment_x0020_Status": {
+                  "Value": "Completed"
+                },
+                "Status": {
+                  "Value": "Provisioned - Deploy in LCS"
+                }
+              },
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['sharepointonline-1']['connectionId']"
+                }
+              },
+              "method": "patch",
+              "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+            },
+            "type": "ApiConnection"
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@actions('Deploy_VNet_and_Peering')['status']",
+                "Succeeded"
+              ]
+            }
+          ]
+        },
+        "runAfter": {
+          "Condition_1_(Status_=_Approved_AND_Deployment_Status_=_Ready_for_Deployment)": [
+            "Succeeded"
+          ]
+        },
+        "type": "If"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_an_item_is_created_or_modified": {
+        "evaluatedRecurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline-1']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/onupdateditems"
+        },
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "type": "ApiConnection"
+      }
+    }
+  },
+  "endpointsConfiguration": {
+    "connector": {
+      "outgoingIpAddresses": [
+        {
+          "address": "52.178.150.68"
+        },
+        {
+          "address": "94.245.91.93"
+        },
+        {
+          "address": "13.69.227.208/28"
+        },
+        {
+          "address": "13.69.231.192/27"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.82.246.112/28"
+        },
+        {
+          "address": "52.146.138.32/27"
+        },
+        {
+          "address": "20.82.226.52"
+        },
+        {
+          "address": "20.82.224.59"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.93.81.75"
+        },
+        {
+          "address": "20.82.159.224"
+        },
+        {
+          "address": "20.82.226.163"
+        },
+        {
+          "address": "20.82.225.129"
+        }
+      ]
+    },
+    "workflow": {
+      "accessEndpointIpAddresses": [
+        {
+          "address": "40.67.252.16"
+        },
+        {
+          "address": "4.207.0.242"
+        },
+        {
+          "address": "4.207.204.28"
+        },
+        {
+          "address": "4.207.203.201"
+        },
+        {
+          "address": "20.67.143.247"
+        },
+        {
+          "address": "20.67.138.43"
+        },
+        {
+          "address": "68.219.40.237"
+        },
+        {
+          "address": "20.105.14.98"
+        },
+        {
+          "address": "4.207.203.15"
+        },
+        {
+          "address": "4.207.204.121"
+        },
+        {
+          "address": "4.207.201.247"
+        },
+        {
+          "address": "20.107.145.46"
+        }
+      ],
+      "outgoingIpAddresses": [
+        {
+          "address": "40.127.240.183"
+        },
+        {
+          "address": "51.138.227.160"
+        },
+        {
+          "address": "40.127.144.121"
+        },
+        {
+          "address": "40.67.251.175"
+        },
+        {
+          "address": "40.67.250.247"
+        },
+        {
+          "address": "4.207.0.229"
+        },
+        {
+          "address": "4.207.0.197"
+        },
+        {
+          "address": "4.207.204.8"
+        },
+        {
+          "address": "4.207.203.217"
+        },
+        {
+          "address": "4.207.203.190"
+        },
+        {
+          "address": "4.207.203.59"
+        },
+        {
+          "address": "20.67.141.244"
+        },
+        {
+          "address": "20.67.139.133"
+        },
+        {
+          "address": "20.67.137.144"
+        },
+        {
+          "address": "20.67.136.162"
+        },
+        {
+          "address": "68.219.40.225"
+        },
+        {
+          "address": "68.219.40.39"
+        },
+        {
+          "address": "20.105.12.63"
+        },
+        {
+          "address": "20.105.11.53"
+        },
+        {
+          "address": "4.207.202.106"
+        },
+        {
+          "address": "4.207.202.95"
+        },
+        {
+          "address": "4.207.204.91"
+        },
+        {
+          "address": "4.207.204.89"
+        },
+        {
+          "address": "4.207.201.234"
+        },
+        {
+          "address": "20.105.15.225"
+        },
+        {
+          "address": "20.67.191.232"
+        },
+        {
+          "address": "20.67.190.37"
+        }
+      ]
+    }
+  },
+  "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-environment-provisioning",
+  "identity": {
+    "principalId": "fbe14e24-1d23-4ec4-b416-fffeae24932c",
+    "tenantId": "d7093539-83cd-4991-b1b3-aacef74cf097",
+    "type": "SystemAssigned"
+  },
+  "location": "northeurope",
+  "name": "la-d365-environment-provisioning",
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "arm-2": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/arm-2",
+          "connectionName": "arm-2",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/arm"
+        },
+        "office365-1": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/office365-1",
+          "connectionName": "office365-1",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/office365"
+        },
+        "sharepointonline-1": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline-1",
+          "connectionName": "sharepointonline-1",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        }
+      }
+    }
+  },
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-lebara-automation",
+  "state": "Enabled",
+  "tags": {
+    " Owner": "IT",
+    " Purpose": "Azure Infra",
+    "Availability": "24/7",
+    "Customer": "SHARED",
+    "Environment": "DEV",
+    "Name": "ERP",
+    "Purpose": "ERP",
+    "Resolver Group": "NA",
+    "RetentionPolicy": "N/A",
+    "Version": "N/A"
+  },
+  "type": "Microsoft.Logic/workflows",
+  "version": "08584378512161103742"
+}

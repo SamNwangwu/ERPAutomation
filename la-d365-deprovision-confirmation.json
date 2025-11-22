@@ -1,0 +1,358 @@
+{
+  "accessEndpoint": "https://prod-58.northeurope.logic.azure.com:443/workflows/f5d0c887f74e4dfc814af5d5a3de9683",
+  "changedTime": "2025-11-22T07:42:54.0292268Z",
+  "createdTime": "2025-11-05T10:37:02.7571937Z",
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Generate_Decommission_Token": {
+        "inputs": "@guid()",
+        "runAfter": {},
+        "type": "Compose"
+      },
+      "Send_Confirmation_Email": {
+        "inputs": {
+          "authentication": {
+            "audience": "https://graph.microsoft.com",
+            "type": "ManagedServiceIdentity"
+          },
+          "body": {
+            "message": {
+              "body": {
+                "content": "<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\"><p>Hi @{triggerBody()?['Author']?['DisplayName']},</p><p>We received a request to <strong>permanently delete</strong> the following environment:</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; margin-top: 20px;\">Decommission Request</h3><table style=\"width: 100%; border-collapse: collapse;\"><tr><td style=\"padding: 8px 0; font-weight: 600; width: 40%;\">Project Name:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Title']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Environment Type:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['EnvironmentType']?['Value']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">Requested By:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Author']?['DisplayName']}</td></tr></table><div style=\"background-color: #f8d7da; padding: 15px; margin: 15px 0; border-left: 4px solid #d13438;\"><strong> WARNING: This action is irreversible.</strong><br>All resources, including the Virtual Machine and Data, will be permanently deleted.</div><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; text-align: center;\">Confirm Deletion</h3><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"padding-top: 20px;\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"border-radius: 6px; padding-right: 10px;\" bgcolor=\"#d13438\"><a href=\"https://prod-07.northeurope.logic.azure.com:443/workflows/0313ee73600a4ff097d780019fe47195/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Vk-FBRBv2zCaz3c-HoGzuZLFQ-uFyXZDFYQ3ORB8PBQ&token=@{outputs('Generate_Decommission_Token')}&itemId=@{triggerBody()?['ID']}&confirmed=true\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 6px; border: 1px solid #d13438; display: inline-block; font-weight: bold;\">CONFIRM</a></td><td align=\"center\" style=\"border-radius: 6px;\" bgcolor=\"#6c757d\"><a href=\"https://prod-07.northeurope.logic.azure.com:443/workflows/0313ee73600a4ff097d780019fe47195/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Vk-FBRBv2zCaz3c-HoGzuZLFQ-uFyXZDFYQ3ORB8PBQ&token=@{outputs('Generate_Decommission_Token')}&itemId=@{triggerBody()?['ID']}&confirmed=false\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 6px; border: 1px solid #6c757d; display: inline-block; font-weight: bold;\">CANCEL REQUEST</a></td></tr></table></td></tr></table><p style=\"text-align: center; color: #6c757d; font-size: 13px; margin-top: 20px;\">If you did not request this, please click Cancel Request.</p></div>",
+                "contentType": "HTML"
+              },
+              "from": {
+                "emailAddress": {
+                  "address": "infra.automation@lebara.com",
+                  "name": "Infrastructure Automation"
+                }
+              },
+              "subject": " ACTION REQUIRED: Confirm Decommission of @{triggerBody()?['Title']}",
+              "toRecipients": [
+                {
+                  "emailAddress": {
+                    "address": "@{triggerBody()?['Author']?['Email']}"
+                  }
+                }
+              ]
+            },
+            "saveToSentItems": false
+          },
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "POST",
+          "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail"
+        },
+        "runAfter": {
+          "Update_SharePoint_Item": [
+            "Succeeded"
+          ]
+        },
+        "type": "Http"
+      },
+      "Send_an_HTTP_request_to_SharePoint": {
+        "inputs": {
+          "body": {
+            "headers": {
+              "Accept": "application/json;odata=nometadata"
+            },
+            "method": "GET",
+            "uri": "_api/web/lists/getbytitle('Environment Requests')/items(@{triggerBody()?['ID']})/versions?$top=2"
+          },
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline-1']['connectionId']"
+            }
+          },
+          "method": "post",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/httprequest"
+        },
+        "runAfter": {
+          "Generate_Decommission_Token": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      },
+      "Set_Token_Expiry": {
+        "inputs": "@addHours(utcNow(), 24)",
+        "runAfter": {
+          "Send_an_HTTP_request_to_SharePoint": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose"
+      },
+      "Update_SharePoint_Item": {
+        "inputs": {
+          "body": {
+            "Decommission_x0020_Token": "@{outputs('Generate_Decommission_Token')}",
+            "PreviousStatus": "@coalesce(body('Send_an_HTTP_request_to_SharePoint')?['value']?[1]?['Status'], 'Provisioned')",
+            "Title": "@triggerBody()?['Title']",
+            "Token_x0020_Expiry": "@outputs('Set_Token_Expiry')"
+          },
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline-2']['connectionId']"
+            }
+          },
+          "method": "patch",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+        },
+        "runAfter": {
+          "Set_Token_Expiry": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_an_item_is_created_or_modified": {
+        "conditions": [
+          {
+            "expression": "@and(equals(triggerBody()?['Status']?['Value'], 'Deprovision Pending'), empty(triggerBody()?['Decommission_x0020_Token']))"
+          }
+        ],
+        "evaluatedRecurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/onupdateditems"
+        },
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "splitOn": "@triggerBody()?['value']",
+        "type": "ApiConnection"
+      }
+    }
+  },
+  "endpointsConfiguration": {
+    "connector": {
+      "outgoingIpAddresses": [
+        {
+          "address": "52.178.150.68"
+        },
+        {
+          "address": "94.245.91.93"
+        },
+        {
+          "address": "13.69.227.208/28"
+        },
+        {
+          "address": "13.69.231.192/27"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.82.246.112/28"
+        },
+        {
+          "address": "52.146.138.32/27"
+        },
+        {
+          "address": "20.82.226.52"
+        },
+        {
+          "address": "20.82.224.59"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.93.81.75"
+        },
+        {
+          "address": "20.82.159.224"
+        },
+        {
+          "address": "20.82.226.163"
+        },
+        {
+          "address": "20.82.225.129"
+        }
+      ]
+    },
+    "workflow": {
+      "accessEndpointIpAddresses": [
+        {
+          "address": "40.67.252.16"
+        },
+        {
+          "address": "4.207.0.242"
+        },
+        {
+          "address": "4.207.204.28"
+        },
+        {
+          "address": "4.207.203.201"
+        },
+        {
+          "address": "20.67.143.247"
+        },
+        {
+          "address": "20.67.138.43"
+        },
+        {
+          "address": "68.219.40.237"
+        },
+        {
+          "address": "20.105.14.98"
+        },
+        {
+          "address": "4.207.203.15"
+        },
+        {
+          "address": "4.207.204.121"
+        },
+        {
+          "address": "4.207.201.247"
+        },
+        {
+          "address": "20.107.145.46"
+        }
+      ],
+      "outgoingIpAddresses": [
+        {
+          "address": "40.127.240.183"
+        },
+        {
+          "address": "51.138.227.160"
+        },
+        {
+          "address": "40.127.144.121"
+        },
+        {
+          "address": "40.67.251.175"
+        },
+        {
+          "address": "40.67.250.247"
+        },
+        {
+          "address": "4.207.0.229"
+        },
+        {
+          "address": "4.207.0.197"
+        },
+        {
+          "address": "4.207.204.8"
+        },
+        {
+          "address": "4.207.203.217"
+        },
+        {
+          "address": "4.207.203.190"
+        },
+        {
+          "address": "4.207.203.59"
+        },
+        {
+          "address": "20.67.141.244"
+        },
+        {
+          "address": "20.67.139.133"
+        },
+        {
+          "address": "20.67.137.144"
+        },
+        {
+          "address": "20.67.136.162"
+        },
+        {
+          "address": "68.219.40.225"
+        },
+        {
+          "address": "68.219.40.39"
+        },
+        {
+          "address": "20.105.12.63"
+        },
+        {
+          "address": "20.105.11.53"
+        },
+        {
+          "address": "4.207.202.106"
+        },
+        {
+          "address": "4.207.202.95"
+        },
+        {
+          "address": "4.207.204.91"
+        },
+        {
+          "address": "4.207.204.89"
+        },
+        {
+          "address": "4.207.201.234"
+        },
+        {
+          "address": "20.105.15.225"
+        },
+        {
+          "address": "20.67.191.232"
+        },
+        {
+          "address": "20.67.190.37"
+        }
+      ]
+    }
+  },
+  "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-deprovision-confirmation",
+  "identity": {
+    "principalId": "19ae12c9-7bbd-43a7-ba3a-9c3499a79c8e",
+    "tenantId": "d7093539-83cd-4991-b1b3-aacef74cf097",
+    "type": "SystemAssigned"
+  },
+  "location": "northeurope",
+  "name": "la-d365-deprovision-confirmation",
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "sharepointonline": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        },
+        "sharepointonline-1": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline-1",
+          "connectionName": "sharepointonline-1",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        },
+        "sharepointonline-2": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline-1",
+          "connectionName": "sharepointonline-1",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        }
+      }
+    }
+  },
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-lebara-automation",
+  "state": "Enabled",
+  "tags": {},
+  "type": "Microsoft.Logic/workflows",
+  "version": "08584378095114543794"
+}

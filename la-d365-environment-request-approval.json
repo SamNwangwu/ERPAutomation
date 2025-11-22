@@ -1,0 +1,378 @@
+{
+  "accessEndpoint": "https://prod-35.northeurope.logic.azure.com:443/workflows/e4799741d95c4f028cd81beb060238ed",
+  "changedTime": "2025-11-21T17:39:48.2621969Z",
+  "createdTime": "2025-11-17T11:23:19.5334569Z",
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Check_if_already_processed": {
+        "actions": {
+          "Terminate_Already_Processed": {
+            "inputs": {
+              "runStatus": "Cancelled"
+            },
+            "type": "Terminate"
+          }
+        },
+        "else": {
+          "actions": {
+            "Generate_Approval_Token": {
+              "inputs": "@guid()",
+              "type": "Compose"
+            },
+            "Send_Approval_Request_Email": {
+              "inputs": {
+                "authentication": {
+                  "audience": "https://graph.microsoft.com",
+                  "type": "ManagedServiceIdentity"
+                },
+                "body": {
+                  "message": {
+                    "body": {
+                      "content": "<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\"><p>Hi Sam,</p><p>A new D365 environment has been requested and requires your approval.</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; margin-top: 20px;\">Request Details</h3><table style=\"width: 100%; border-collapse: collapse;\"><tr><td style=\"padding: 8px 0; font-weight: 600; width: 40%;\">Project Name:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Title']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Environment Type:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['EnvironmentType']?['Value']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">Requested By:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Author']?['DisplayName']} (@{triggerBody()?['Author']?['Email']})</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Requested On:</td><td style=\"padding: 8px 0;\">@{formatDateTime(triggerBody()?['Created'], 'yyyy-MM-dd HH:mm')}</td></tr></table><div style=\"background-color: #f8f9fa; padding: 15px; margin: 15px 0; border-left: 4px solid #0078d4;\"><strong>Business Justification:</strong><br><span style=\"color: #666;\">@{triggerBody()?['BusinessJustification']}</span></div><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; text-align: center;\">Action Required</h3><!-- BUTTONS START --><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"padding-top: 20px;\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"border-radius: 6px;\" bgcolor=\"#28a745\"><a href=\"https://prod-60.northeurope.logic.azure.com:443/workflows/a39add57cebe447da19c76380ec36ed3/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2Wgg9CEV70EJFoLRtMFz0Wa-Xb0mUCUOLyStJ8XDcOY&itemId=@{triggerBody()?['ID']}&action=approve&approverName=Samuel%20Nwangwu&approverEmail=samuel.nwangwu@lebara.com\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 50px; border-radius: 6px; border: 1px solid #28a745; display: inline-block; font-weight: bold;\"><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%; mso-text-raise: 30pt;\">&nbsp;</i><![endif]--><span style=\"mso-text-raise: 15pt;\"> APPROVE REQUEST</span><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%;\">&nbsp;</i><![endif]--></a></td></tr></table></td></tr><tr><td align=\"center\" style=\"padding-top: 20px;\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"border-radius: 6px;\" bgcolor=\"#dc3545\"><a href=\"https://prod-60.northeurope.logic.azure.com:443/workflows/a39add57cebe447da19c76380ec36ed3/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=2Wgg9CEV70EJFoLRtMFz0Wa-Xb0mUCUOLyStJ8XDcOY&itemId=@{triggerBody()?['ID']}&action=reject&approverName=Samuel%20Nwangwu&approverEmail=samuel.nwangwu@lebara.com\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 50px; border-radius: 6px; border: 1px solid #dc3545; display: inline-block; font-weight: bold;\"><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%; mso-text-raise: 30pt;\">&nbsp;</i><![endif]--><span style=\"mso-text-raise: 15pt;\"> REJECT REQUEST</span><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%;\">&nbsp;</i><![endif]--></a></td></tr></table></td></tr></table><!-- BUTTONS END --><p style=\"text-align: center; color: #6c757d; font-size: 13px; margin-top: 20px;\">Click a button above to process this request</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4;\">Quick Links</h3><ul style=\"list-style: none; padding: 0;\"><li style=\"padding: 5px 0;\"><a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests/DispForm.aspx?ID=@{triggerBody()?['ID']}\" style=\"color: #0078d4; text-decoration: none;\"> View Request in SharePoint</a></li><li style=\"padding: 5px 0;\"><a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/IP%20Address%20Pool\" style=\"color: #0078d4; text-decoration: none;\"> View IP Address Pool</a></li><li style=\"padding: 5px 0;\"><a href=\"https://portal.azure.com/#@lebara.com/resource/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/overview\" style=\"color: #0078d4; text-decoration: none;\"> View Shared Networking Resource Group</a></li></ul><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><p style=\"color: #666; font-size: 13px; margin-top: 30px;\"><strong>Infrastructure Automation</strong></p></div>",
+                      "contentType": "HTML"
+                    },
+                    "from": {
+                      "emailAddress": {
+                        "address": "infra.automation@lebara.com",
+                        "name": "Infrastructure Automation"
+                      }
+                    },
+                    "importance": "high",
+                    "subject": " New Environment Request Requires Approval: @{triggerBody()?['Title']}",
+                    "toRecipients": [
+                      {
+                        "emailAddress": {
+                          "address": "Samuel.Nwangwu@lebara.com"
+                        }
+                      }
+                    ]
+                  },
+                  "saveToSentItems": false
+                },
+                "headers": {
+                  "Content-Type": "application/json"
+                },
+                "method": "POST",
+                "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail"
+              },
+              "runAfter": {
+                "Update_SharePoint_with_Token": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Http"
+            },
+            "Set_Token_Expiry": {
+              "inputs": "@addHours(utcNow(), 24)",
+              "runAfter": {
+                "Generate_Approval_Token": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Compose"
+            },
+            "Update_SharePoint_with_Token": {
+              "inputs": {
+                "body": {
+                  "Approval_x0020_Token": "@outputs('Generate_Approval_Token')",
+                  "BusinessJustification": "@triggerBody()?['BusinessJustification']",
+                  "Status": {
+                    "Value": "Pending Approval"
+                  },
+                  "Title": "@triggerBody()?['Title']",
+                  "Token_x0020_Expiry": "@outputs('Set_Token_Expiry')",
+                  "VNet_x0020_Name": "@variables('VNetName')"
+                },
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                  }
+                },
+                "method": "patch",
+                "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+              },
+              "runAfter": {
+                "Set_Token_Expiry": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ApiConnection"
+            }
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "not": {
+                "equals": [
+                  "@triggerBody()?['Approval_x0020_Token']",
+                  null
+                ]
+              }
+            },
+            {
+              "not": {
+                "equals": [
+                  "@triggerBody()?['Approval_x0020_Token']",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_VNet_Name": [
+            "Succeeded"
+          ]
+        },
+        "type": "If"
+      },
+      "Initialize_VNet_Name": {
+        "inputs": {
+          "variables": [
+            {
+              "name": "VNetName",
+              "type": "string",
+              "value": "@concat('lebara-', toLower(triggerBody()?['EnvironmentType']?['Value']), '-', replace(replace(replace(toLower(triggerBody()?['Title']), ' ', '-'), '_', '-'), '/', '-'), '-vnet')"
+            }
+          ]
+        },
+        "runAfter": {},
+        "type": "InitializeVariable"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_an_item_is_created": {
+        "evaluatedRecurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/onnewitems"
+        },
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "splitOn": "@triggerBody()?['value']",
+        "type": "ApiConnection"
+      }
+    }
+  },
+  "endpointsConfiguration": {
+    "connector": {
+      "outgoingIpAddresses": [
+        {
+          "address": "52.178.150.68"
+        },
+        {
+          "address": "94.245.91.93"
+        },
+        {
+          "address": "13.69.227.208/28"
+        },
+        {
+          "address": "13.69.231.192/27"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.82.246.112/28"
+        },
+        {
+          "address": "52.146.138.32/27"
+        },
+        {
+          "address": "20.82.226.52"
+        },
+        {
+          "address": "20.82.224.59"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.93.81.75"
+        },
+        {
+          "address": "20.82.159.224"
+        },
+        {
+          "address": "20.82.226.163"
+        },
+        {
+          "address": "20.82.225.129"
+        }
+      ]
+    },
+    "workflow": {
+      "accessEndpointIpAddresses": [
+        {
+          "address": "40.67.252.16"
+        },
+        {
+          "address": "4.207.0.242"
+        },
+        {
+          "address": "4.207.204.28"
+        },
+        {
+          "address": "4.207.203.201"
+        },
+        {
+          "address": "20.67.143.247"
+        },
+        {
+          "address": "20.67.138.43"
+        },
+        {
+          "address": "68.219.40.237"
+        },
+        {
+          "address": "20.105.14.98"
+        },
+        {
+          "address": "4.207.203.15"
+        },
+        {
+          "address": "4.207.204.121"
+        },
+        {
+          "address": "4.207.201.247"
+        },
+        {
+          "address": "20.107.145.46"
+        }
+      ],
+      "outgoingIpAddresses": [
+        {
+          "address": "40.127.240.183"
+        },
+        {
+          "address": "51.138.227.160"
+        },
+        {
+          "address": "40.127.144.121"
+        },
+        {
+          "address": "40.67.251.175"
+        },
+        {
+          "address": "40.67.250.247"
+        },
+        {
+          "address": "4.207.0.229"
+        },
+        {
+          "address": "4.207.0.197"
+        },
+        {
+          "address": "4.207.204.8"
+        },
+        {
+          "address": "4.207.203.217"
+        },
+        {
+          "address": "4.207.203.190"
+        },
+        {
+          "address": "4.207.203.59"
+        },
+        {
+          "address": "20.67.141.244"
+        },
+        {
+          "address": "20.67.139.133"
+        },
+        {
+          "address": "20.67.137.144"
+        },
+        {
+          "address": "20.67.136.162"
+        },
+        {
+          "address": "68.219.40.225"
+        },
+        {
+          "address": "68.219.40.39"
+        },
+        {
+          "address": "20.105.12.63"
+        },
+        {
+          "address": "20.105.11.53"
+        },
+        {
+          "address": "4.207.202.106"
+        },
+        {
+          "address": "4.207.202.95"
+        },
+        {
+          "address": "4.207.204.91"
+        },
+        {
+          "address": "4.207.204.89"
+        },
+        {
+          "address": "4.207.201.234"
+        },
+        {
+          "address": "20.105.15.225"
+        },
+        {
+          "address": "20.67.191.232"
+        },
+        {
+          "address": "20.67.190.37"
+        }
+      ]
+    }
+  },
+  "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-environment-request-approval",
+  "identity": {
+    "principalId": "a8ab25f7-d137-4cfb-b9b0-0222787e3ead",
+    "tenantId": "d7093539-83cd-4991-b1b3-aacef74cf097",
+    "type": "SystemAssigned"
+  },
+  "location": "northeurope",
+  "name": "la-d365-environment-request-approval",
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "sharepointonline": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        }
+      }
+    }
+  },
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-lebara-automation",
+  "state": "Enabled",
+  "tags": {
+    " Owner": "IT",
+    " Purpose": "Azure Infra"
+  },
+  "type": "Microsoft.Logic/workflows",
+  "version": "08584378600972259784"
+}

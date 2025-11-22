@@ -1,0 +1,613 @@
+{
+  "accessEndpoint": "https://prod-00.northeurope.logic.azure.com:443/workflows/4990a04f8b2e4a64b731d0a858f223cd",
+  "changedTime": "2025-11-21T16:28:55.0309209Z",
+  "createdTime": "2025-11-18T11:13:43.9409924Z",
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+      "Check_If_NIC_Has_VM": {
+        "actions": {
+          "Check_If_Matching_Request_Found": {
+            "actions": {
+              "Call_Hardening_Logic_App": {
+                "inputs": {
+                  "body": {
+                    "environmentId": "@body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['ID']",
+                    "environmentName": "@body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Title']",
+                    "resourceGroupName": "@outputs('Extract_VM_Details')?['vmRG']",
+                    "vmName": "@outputs('Extract_VM_Details')?['vmName']",
+                    "vnetName": "@body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['VNet_x0020_Name']"
+                  },
+                  "method": "POST",
+                  "uri": "https://prod-34.northeurope.logic.azure.com:443/workflows/0a19273d861d4c55b614bded2a0e3fe7/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cfj7FWzi5RplJU88w9EyNoYObBlL6poXcdzJbTa_jXg"
+                },
+                "runAfter": {
+                  "Send_Detection_Email": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Http"
+              },
+              "Extract_VM_Details": {
+                "inputs": {
+                  "vmName": "@last(split(body('Parse_NIC_Retry')?['properties']?['virtualMachine']?['id'], '/'))",
+                  "vmRG": "@split(body('Parse_NIC_Retry')?['properties']?['virtualMachine']?['id'], '/')[4]",
+                  "vmResourceId": "@body('Parse_NIC_Retry')?['properties']?['virtualMachine']?['id']"
+                },
+                "runAfter": {},
+                "type": "Compose"
+              },
+              "Send_Detection_Email": {
+                "inputs": {
+                  "authentication": {
+                    "audience": "https://graph.microsoft.com",
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "body": {
+                    "message": {
+                      "body": {
+                        "content": "<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\"><p>Hi @{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Author']?['DisplayName']},</p><p>Great news! We've detected that your <strong>@{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Title']}</strong> environment has been deployed in LCS.</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; margin-top: 20px;\">Deployment Details</h3><table style=\"width: 100%; border-collapse: collapse;\"><tr><td style=\"padding: 8px 0; font-weight: 600; width: 40%;\">Project Name:</td><td style=\"padding: 8px 0;\">@{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Title']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Resource Group:</td><td style=\"padding: 8px 0;\">@{outputs('Extract_VM_Details')?['vmRG']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">VM Name:</td><td style=\"padding: 8px 0;\">@{outputs('Extract_VM_Details')?['vmName']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Virtual Network:</td><td style=\"padding: 8px 0;\">@{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['VNet_x0020_Name']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">Detection Time:</td><td style=\"padding: 8px 0;\">@{formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:ss')} UTC</td></tr></table><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4;\">What Happens Next</h3><div style=\"background-color: #e7f3ff; border-left: 4px solid #0078d4; padding: 15px; margin: 20px 0; border-radius: 4px;\"><p style=\"margin: 0 0 10px 0; color: #004085;\"><strong>Automatic Hardening in Progress:</strong></p><ul style=\"margin: 0; padding-left: 20px; color: #004085;\"><li>Network Security Group (NSG) rules are being hardened</li><li>Unnecessary management ports will be restricted</li><li>Security baselines are being applied</li><li>Your RDP connection script is being generated</li></ul></div><p>This process typically takes 5-10 minutes. You'll receive another email with your connection script once hardening is complete.</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4;\">Quick Links</h3><ul style=\"list-style: none; padding: 0;\"><li style=\"padding: 5px 0;\"><a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests/DispForm.aspx?ID=@{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['ID']}\" style=\"color: #0078d4; text-decoration: none;\"> View Request in SharePoint</a></li><li style=\"padding: 5px 0;\"><a href=\"https://portal.azure.com/#@lebara.com/resource/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/@{outputs('Extract_VM_Details')?['vmRG']}/overview\" style=\"color: #0078d4; text-decoration: none;\"> View Resource Group in Azure Portal</a></li></ul><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><p style=\"color: #666; font-size: 13px;\">Need assistance? Contact the Infrastructure Team: <a href=\"mailto:infrastructure@lebara.com\" style=\"color: #0078d4; text-decoration: none;\">infrastructure@lebara.com</a></p><p style=\"color: #666; font-size: 13px; margin-top: 30px;\"><strong>Infrastructure Automation</strong></p></div>",
+                        "contentType": "HTML"
+                      },
+                      "from": {
+                        "emailAddress": {
+                          "address": "infra.automation@lebara.com",
+                          "name": "Infrastructure Automation"
+                        }
+                      },
+                      "importance": "normal",
+                      "subject": " LCS Deployment Detected: @{body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Title']}",
+                      "toRecipients": [
+                        {
+                          "emailAddress": {
+                            "address": "@body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['Author']?['Email']"
+                          }
+                        }
+                      ]
+                    },
+                    "saveToSentItems": false
+                  },
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "method": "POST",
+                  "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail"
+                },
+                "runAfter": {
+                  "Update_SharePoint_With_VM_Details": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Http"
+              },
+              "Update_SharePoint_With_VM_Details": {
+                "inputs": {
+                  "body": {
+                    "Resource_x0020_Group_x0020_Name": "@outputs('Extract_VM_Details')?['vmRG']",
+                    "Status": {
+                      "Value": "Provisioned"
+                    },
+                    "VM_x0020_Name": "@outputs('Extract_VM_Details')?['vmName']"
+                  },
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "patch",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(body('Get_SharePoint_Items_Waiting_For_LCS')?['value']?[0]?['ID'])}"
+                },
+                "runAfter": {
+                  "Extract_VM_Details": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "ApiConnection"
+              }
+            },
+            "expression": {
+              "and": [
+                {
+                  "greater": [
+                    "@length(body('Get_SharePoint_Items_Waiting_For_LCS')?['value'])",
+                    0
+                  ]
+                }
+              ]
+            },
+            "runAfter": {
+              "Get_SharePoint_Items_Waiting_For_LCS": [
+                "Succeeded"
+              ]
+            },
+            "type": "If"
+          },
+          "Extract_Subnet_VNet_Name": {
+            "inputs": {
+              "subnetId": "@body('Parse_NIC_Retry')?['properties']?['ipConfigurations']?[0]?['properties']?['subnet']?['id']",
+              "vnetName": "@split(body('Parse_NIC_Retry')?['properties']?['ipConfigurations']?[0]?['properties']?['subnet']?['id'], '/')[8]"
+            },
+            "runAfter": {},
+            "type": "Compose"
+          },
+          "Get_SharePoint_Items_Waiting_For_LCS": {
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                }
+              },
+              "method": "get",
+              "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items",
+              "queries": {
+                "$filter": "VNet_x0020_Name eq '@{outputs('Extract_Subnet_VNet_Name')?['vnetName']}' and Status eq 'Provisioned - Deploy in LCS'"
+              }
+            },
+            "runAfter": {
+              "Extract_Subnet_VNet_Name": [
+                "Succeeded"
+              ]
+            },
+            "type": "ApiConnection"
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "not": {
+                "equals": [
+                  "@body('Parse_NIC_Retry')?['properties']?['virtualMachine']",
+                  null
+                ]
+              }
+            }
+          ]
+        },
+        "runAfter": {
+          "Wait_For_VM_Attachment": [
+            "Succeeded"
+          ]
+        },
+        "type": "If"
+      },
+      "Extract_NIC_Details": {
+        "inputs": {
+          "nicName": "@last(split(body('Parse_Event_Grid_Event')?['data']?['resourceUri'], '/'))",
+          "nicRG": "@split(body('Parse_Event_Grid_Event')?['data']?['resourceUri'], '/')[4]",
+          "nicResourceId": "@body('Parse_Event_Grid_Event')?['data']?['resourceUri']"
+        },
+        "runAfter": {
+          "Parse_Event_Grid_Event": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose"
+      },
+      "Get_NIC_Details": {
+        "inputs": {
+          "authentication": {
+            "audience": "https://management.azure.com",
+            "type": "ManagedServiceIdentity"
+          },
+          "method": "GET",
+          "uri": "https://management.azure.com@{body('Parse_Event_Grid_Event')?['data']?['resourceUri']}?api-version=2024-01-01"
+        },
+        "runAfter": {
+          "Extract_NIC_Details": [
+            "Succeeded"
+          ]
+        },
+        "type": "Http"
+      },
+      "Parse_Event_Grid_Event": {
+        "inputs": {
+          "content": "@triggerBody()?[0]",
+          "schema": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "resourceUri": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "eventType": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "topic": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "runAfter": {},
+        "type": "ParseJson"
+      },
+      "Parse_NIC_Response": {
+        "inputs": {
+          "content": "@body('Get_NIC_Details')",
+          "schema": {
+            "properties": {
+              "properties": {
+                "properties": {
+                  "ipConfigurations": {
+                    "items": {
+                      "properties": {
+                        "properties": {
+                          "properties": {
+                            "subnet": {
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "virtualMachine": {
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "runAfter": {
+          "Get_NIC_Details": [
+            "Succeeded"
+          ]
+        },
+        "type": "ParseJson"
+      },
+      "Wait_For_VM_Attachment": {
+        "actions": {
+          "Delay_30_Seconds": {
+            "inputs": {
+              "interval": {
+                "count": 30,
+                "unit": "Second"
+              }
+            },
+            "runAfter": {
+              "Parse_NIC_Retry": [
+                "Succeeded"
+              ]
+            },
+            "type": "Wait"
+          },
+          "Get_NIC_Details_Retry": {
+            "inputs": {
+              "authentication": {
+                "audience": "https://management.azure.com",
+                "type": "ManagedServiceIdentity"
+              },
+              "method": "GET",
+              "uri": "https://management.azure.com@{body('Parse_Event_Grid_Event')?['data']?['resourceUri']}?api-version=2024-01-01"
+            },
+            "type": "Http"
+          },
+          "Parse_NIC_Retry": {
+            "inputs": {
+              "content": "@body('Get_NIC_Details_Retry')",
+              "schema": {
+                "properties": {
+                  "properties": {
+                    "properties": {
+                      "ipConfigurations": {
+                        "type": "array"
+                      },
+                      "virtualMachine": {
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "runAfter": {
+              "Get_NIC_Details_Retry": [
+                "Succeeded"
+              ]
+            },
+            "type": "ParseJson"
+          }
+        },
+        "expression": "@not(equals(body('Parse_NIC_Retry')?['properties']?['virtualMachine'], null))",
+        "limit": {
+          "count": 10,
+          "timeout": "PT5M"
+        },
+        "runAfter": {
+          "Parse_NIC_Response": [
+            "Succeeded"
+          ]
+        },
+        "type": "Until"
+      }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_a_resource_event_occurs": {
+        "inputs": {
+          "body": {
+            "properties": {
+              "destination": {
+                "endpointType": "webhook",
+                "properties": {
+                  "endpointUrl": "@{listCallbackUrl()}"
+                }
+              },
+              "filter": {
+                "advancedFilters": [
+                  {
+                    "key": "data.resourceUri",
+                    "operatorType": "StringContains",
+                    "values": [
+                      "/Microsoft.Network/networkInterfaces/"
+                    ]
+                  }
+                ],
+                "includedEventTypes": [
+                  "Microsoft.Resources.ResourceWriteSuccess"
+                ]
+              },
+              "topic": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7"
+            }
+          },
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azureeventgrid']['connectionId']"
+            }
+          },
+          "path": "/subscriptions/@{encodeURIComponent('8cc0a954-47fb-4878-a768-e195dbd036b7')}/providers/@{encodeURIComponent('Microsoft.Resources.Subscriptions')}/resource/eventSubscriptions",
+          "queries": {
+            "x-ms-api-version": "2017-09-15-preview"
+          }
+        },
+        "type": "ApiConnectionWebhook"
+      }
+    }
+  },
+  "endpointsConfiguration": {
+    "connector": {
+      "outgoingIpAddresses": [
+        {
+          "address": "52.178.150.68"
+        },
+        {
+          "address": "94.245.91.93"
+        },
+        {
+          "address": "13.69.227.208/28"
+        },
+        {
+          "address": "13.69.231.192/27"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.82.246.112/28"
+        },
+        {
+          "address": "52.146.138.32/27"
+        },
+        {
+          "address": "20.82.226.52"
+        },
+        {
+          "address": "20.82.224.59"
+        },
+        {
+          "address": "40.115.108.29"
+        },
+        {
+          "address": "20.93.81.75"
+        },
+        {
+          "address": "20.82.159.224"
+        },
+        {
+          "address": "20.82.226.163"
+        },
+        {
+          "address": "20.82.225.129"
+        }
+      ]
+    },
+    "workflow": {
+      "accessEndpointIpAddresses": [
+        {
+          "address": "40.67.252.16"
+        },
+        {
+          "address": "4.207.0.242"
+        },
+        {
+          "address": "4.207.204.28"
+        },
+        {
+          "address": "4.207.203.201"
+        },
+        {
+          "address": "20.67.143.247"
+        },
+        {
+          "address": "20.67.138.43"
+        },
+        {
+          "address": "68.219.40.237"
+        },
+        {
+          "address": "20.105.14.98"
+        },
+        {
+          "address": "4.207.203.15"
+        },
+        {
+          "address": "4.207.204.121"
+        },
+        {
+          "address": "4.207.201.247"
+        },
+        {
+          "address": "20.107.145.46"
+        }
+      ],
+      "outgoingIpAddresses": [
+        {
+          "address": "40.127.240.183"
+        },
+        {
+          "address": "51.138.227.160"
+        },
+        {
+          "address": "40.127.144.121"
+        },
+        {
+          "address": "40.67.251.175"
+        },
+        {
+          "address": "40.67.250.247"
+        },
+        {
+          "address": "4.207.0.229"
+        },
+        {
+          "address": "4.207.0.197"
+        },
+        {
+          "address": "4.207.204.8"
+        },
+        {
+          "address": "4.207.203.217"
+        },
+        {
+          "address": "4.207.203.190"
+        },
+        {
+          "address": "4.207.203.59"
+        },
+        {
+          "address": "20.67.141.244"
+        },
+        {
+          "address": "20.67.139.133"
+        },
+        {
+          "address": "20.67.137.144"
+        },
+        {
+          "address": "20.67.136.162"
+        },
+        {
+          "address": "68.219.40.225"
+        },
+        {
+          "address": "68.219.40.39"
+        },
+        {
+          "address": "20.105.12.63"
+        },
+        {
+          "address": "20.105.11.53"
+        },
+        {
+          "address": "4.207.202.106"
+        },
+        {
+          "address": "4.207.202.95"
+        },
+        {
+          "address": "4.207.204.91"
+        },
+        {
+          "address": "4.207.204.89"
+        },
+        {
+          "address": "4.207.201.234"
+        },
+        {
+          "address": "20.105.15.225"
+        },
+        {
+          "address": "20.67.191.232"
+        },
+        {
+          "address": "20.67.190.37"
+        }
+      ]
+    }
+  },
+  "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-lcs-deployment-detector",
+  "identity": {
+    "principalId": "a87add4f-2090-4b1b-90a4-f997e0726bb0",
+    "tenantId": "d7093539-83cd-4991-b1b3-aacef74cf097",
+    "type": "SystemAssigned"
+  },
+  "location": "northeurope",
+  "name": "la-d365-lcs-deployment-detector",
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "azureeventgrid": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/azureeventgrid",
+          "connectionName": "azureeventgrid",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/azureeventgrid"
+        },
+        "office365": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/office365",
+          "connectionName": "office365",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/office365"
+        },
+        "sharepointonline": {
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "connectionProperties": {},
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline"
+        }
+      }
+    }
+  },
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-lebara-automation",
+  "state": "Enabled",
+  "type": "Microsoft.Logic/workflows",
+  "version": "08584378643504601271"
+}
