@@ -1,0 +1,356 @@
+{
+  "Sku": null,
+  "ProvisioningState": "Succeeded",
+  "CreatedTime": "2025-11-21T10:28:49.7591246Z",
+  "ChangedTime": "2025-11-21T16:20:57.0643585Z",
+  "State": "Enabled",
+  "Version": "08584378648284212408",
+  "AccessEndpoint": "https://prod-62.northeurope.logic.azure.com:443/workflows/d833583519274b7a976d3ec9a354bad0",
+  "IntegrationAccount": null,
+  "Definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "method": "POST",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "environmentId": {
+                "type": "string"
+              },
+              "environmentName": {
+                "type": "string"
+              },
+              "vnetName": {
+                "type": "string"
+              },
+              "resourceGroupName": {
+                "type": "string"
+              },
+              "vmName": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "Check_If_Resource_Group_Exists": {
+        "runAfter": {},
+        "type": "Http",
+        "inputs": {
+          "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/@{triggerBody()?['resourceGroupName']}?api-version=2021-04-01",
+          "method": "GET",
+          "authentication": {
+            "type": "ManagedServiceIdentity",
+            "audience": "https://management.azure.com"
+          }
+        }
+      },
+      "Handle_Cleanup": {
+        "actions": {
+          "Delete_Resource_Group": {
+            "type": "Http",
+            "inputs": {
+              "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/@{triggerBody()?['resourceGroupName']}?api-version=2021-04-01",
+              "method": "DELETE",
+              "authentication": {
+                "type": "ManagedServiceIdentity",
+                "audience": "https://management.azure.com"
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Check_If_Resource_Group_Exists": [
+            "Succeeded",
+            "Failed"
+          ]
+        },
+        "else": {
+          "actions": {
+            "Get_NICs_in_VNet": {
+              "type": "Http",
+              "inputs": {
+                "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Network/networkInterfaces?api-version=2024-01-01",
+                "method": "GET",
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "https://management.azure.com"
+                }
+              }
+            },
+            "Parse_NICs": {
+              "runAfter": {
+                "Get_NICs_in_VNet": [
+                  "Succeeded"
+                ]
+              },
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('Get_NICs_in_VNet')",
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "properties": {
+                            "type": "object",
+                            "properties": {
+                              "ipConfigurations": {
+                                "type": "array"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Filter_NICs_In_Target_VNet": {
+              "runAfter": {
+                "Parse_NICs": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Parse_NICs')?['value']",
+                "where": "@contains(string(item()?['properties']?['ipConfigurations']), triggerBody()?['vnetName'])"
+              }
+            },
+            "Delete_Orphaned_NICs": {
+              "foreach": "@body('Filter_NICs_In_Target_VNet')",
+              "actions": {
+                "Delete_NIC": {
+                  "type": "Http",
+                  "inputs": {
+                    "uri": "https://management.azure.com@{items('Delete_Orphaned_NICs')?['id']}?api-version=2024-01-01",
+                    "method": "DELETE",
+                    "authentication": {
+                      "type": "ManagedServiceIdentity",
+                      "audience": "https://management.azure.com"
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Filter_NICs_In_Target_VNet": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach"
+            }
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@outputs('Check_If_Resource_Group_Exists')['statusCode']",
+                200
+              ]
+            }
+          ]
+        },
+        "type": "If"
+      },
+      "Delete_Spoke_to_Hub_Peering": {
+        "runAfter": {
+          "Handle_Cleanup": [
+            "Succeeded"
+          ]
+        },
+        "type": "Http",
+        "inputs": {
+          "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/providers/Microsoft.Network/virtualNetworks/@{triggerBody()?['vnetName']}/virtualNetworkPeerings/@{triggerBody()?['vnetName']}-to-hub?api-version=2024-01-01",
+          "method": "DELETE",
+          "authentication": {
+            "type": "ManagedServiceIdentity",
+            "audience": "https://management.azure.com"
+          }
+        }
+      },
+      "Delete_Hub_to_Spoke_Peering": {
+        "runAfter": {
+          "Delete_Spoke_to_Hub_Peering": [
+            "Succeeded",
+            "Failed"
+          ]
+        },
+        "type": "Http",
+        "inputs": {
+          "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-security-hub-northeurope/providers/Microsoft.Network/virtualNetworks/vnet-lebara-security-hub/virtualNetworkPeerings/hub-to-@{triggerBody()?['vnetName']}?api-version=2024-01-01",
+          "method": "DELETE",
+          "authentication": {
+            "type": "ManagedServiceIdentity",
+            "audience": "https://management.azure.com"
+          }
+        }
+      },
+      "Delete_VNet": {
+        "runAfter": {
+          "Delete_Hub_to_Spoke_Peering": [
+            "Succeeded",
+            "Failed"
+          ]
+        },
+        "type": "Http",
+        "inputs": {
+          "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/providers/Microsoft.Network/virtualNetworks/@{triggerBody()?['vnetName']}?api-version=2024-01-01",
+          "method": "DELETE",
+          "authentication": {
+            "type": "ManagedServiceIdentity",
+            "audience": "https://management.azure.com"
+          }
+        }
+      },
+      "Update_SharePoint_to_Deprovisioned": {
+        "runAfter": {
+          "Delete_VNet": [
+            "Succeeded"
+          ]
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['environmentId'])}"
+        }
+      },
+      "Check_If_Has_Connection_Script": {
+        "actions": {
+          "Delete_Connection_Script": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                }
+              },
+              "method": "delete",
+              "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/files/@{encodeURIComponent(decodeUriComponent(substring(body('Update_SharePoint_to_Deprovisioned')?['Connection_x0020_Script'], indexOf(body('Update_SharePoint_to_Deprovisioned')?['Connection_x0020_Script'], '/sites/'))))}"
+            }
+          }
+        },
+        "runAfter": {
+          "Update_SharePoint_to_Deprovisioned": [
+            "Succeeded"
+          ]
+        },
+        "else": {
+          "actions": {}
+        },
+        "expression": {
+          "and": [
+            {
+              "not": {
+                "equals": [
+                  "@body('Update_SharePoint_to_Deprovisioned')?['Connection_x0020_Script']",
+                  "@null"
+                ]
+              }
+            },
+            {
+              "not": {
+                "equals": [
+                  "@body('Update_SharePoint_to_Deprovisioned')?['Connection_x0020_Script']",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        "type": "If"
+      },
+      "Final_SharePoint_Update": {
+        "runAfter": {
+          "Check_If_Has_Connection_Script": [
+            "Succeeded",
+            "Skipped"
+          ]
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "patch",
+          "body": {
+            "Status": {
+              "Value": "Deprovisioned"
+            },
+            "Deprovisioned_x0020_Date": "@utcNow()",
+            "Connection_x0020_Script": null,
+            "VM_x0020_Name": null
+          },
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['environmentId'])}"
+        }
+      },
+      "Response": {
+        "runAfter": {
+          "Final_SharePoint_Update": [
+            "Succeeded"
+          ]
+        },
+        "type": "Response",
+        "inputs": {
+          "statusCode": 200,
+          "body": {
+            "status": "success",
+            "message": "Environment deprovisioned successfully",
+            "environmentName": "@{triggerBody()?['environmentName']}"
+          }
+        }
+      }
+    },
+    "outputs": {}
+  },
+  "Parameters": {
+    "$connections": {
+      "Type": "Object",
+      "Value": {
+        "sharepointonline": {
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline",
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline"
+        }
+      },
+      "Metadata": null,
+      "Description": null
+    }
+  },
+  "Id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-deprovision-execute-auto",
+  "Name": "la-d365-deprovision-execute-auto",
+  "Type": "Microsoft.Logic/workflows",
+  "Location": "northeurope",
+  "Tags": {
+    " Owner": "IT",
+    " Purpose": "Azure Infra"
+  }
+}

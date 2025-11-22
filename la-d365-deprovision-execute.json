@@ -1,0 +1,440 @@
+{
+  "Sku": null,
+  "ProvisioningState": "Succeeded",
+  "CreatedTime": "2025-11-05T10:38:33.6873027Z",
+  "ChangedTime": "2025-11-22T05:15:14.7290598Z",
+  "State": "Enabled",
+  "Version": "08584378183707543934",
+  "AccessEndpoint": "https://prod-07.northeurope.logic.azure.com:443/workflows/0313ee73600a4ff097d780019fe47195",
+  "IntegrationAccount": null,
+  "Definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "method": "GET",
+          "schema": {
+            "properties": {},
+            "type": "object"
+          }
+        }
+      }
+    },
+    "actions": {
+      "Get_SharePoint_Item": {
+        "runAfter": {},
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerOutputs()['queries']?['itemId'])}"
+        }
+      },
+      "Validate_Token_and_Expiry": {
+        "actions": {
+          "Check_If_Confirmed": {
+            "actions": {
+              "Send_Processing_Response": {
+                "runAfter": {},
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "body": "<!DOCTYPE html><html><head><title>Deprovisioning Started</title><meta http-equiv=\"refresh\" content=\"3;url=https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests\"><style>body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 50px auto; padding: 30px; background: #f5f5f5; text-align: center; } .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); } .processing { color: #0078d4; font-size: 64px; animation: spin 2s linear infinite; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } h1 { color: #0078d4; } .btn { display: inline-block; padding: 15px 30px; margin: 20px 10px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }</style></head><body><div class=\"container\"><div class=\"processing\">⚙️</div><h1>Deprovisioning Started!</h1><p>The environment <strong>@{body('Get_SharePoint_Item')?['Title']}</strong> is now being deprovisioned.</p><p>This process will take approximately 5-10 minutes to complete.</p><p><strong>You will receive a confirmation email</strong> once all resources have been deleted.</p><p><em>Redirecting to Environment Requests in 3 seconds...</em></p><a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests\" class=\"btn\">Return to Environment Requests Now</a></div></body></html>",
+                  "headers": {
+                    "Content-Type": "text/html"
+                  },
+                  "statusCode": 200
+                }
+              },
+              "Update_Status_to_In_Progress": {
+                "runAfter": {
+                  "Send_Processing_Response": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                  "body": {
+                    "Status": {
+                      "Value": "Deprovisioning in Progress"
+                    },
+                    "Title": "@body('Get_SharePoint_Item')?['Title']"
+                  },
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "patch",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerOutputs()['queries']?['itemId'])}"
+                }
+              },
+              "Get_Original_Status": {
+                "runAfter": {
+                  "Update_Status_to_In_Progress": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Compose",
+                "inputs": "@body('Get_SharePoint_Item')?['PreviousStatus']"
+              },
+              "Check_If_Fully_Provisioned": {
+                "actions": {
+                  "Delete_Connection_Script": {
+                    "runAfter": {},
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                      },
+                      "method": "delete",
+                      "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/files/@{encodeURIComponent(decodeUriComponent(substring(body('Get_SharePoint_Item')?['Connection_x0020_Script'], indexOf(body('Get_SharePoint_Item')?['Connection_x0020_Script'], '/sites/'))))}"
+                    }
+                  },
+                  "Delete_Resource_Group": {
+                    "runAfter": {
+                      "Delete_Connection_Script": [
+                        "Succeeded",
+                        "Failed",
+                        "Skipped"
+                      ]
+                    },
+                    "type": "Http",
+                    "inputs": {
+                      "authentication": {
+                        "audience": "https://management.azure.com",
+                        "type": "ManagedServiceIdentity"
+                      },
+                      "method": "DELETE",
+                      "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/@{body('Get_SharePoint_Item')?['Resource_x0020_Group_x0020_Name']}?api-version=2021-04-01"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Get_Original_Status": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "equals": [
+                        "@body('Get_SharePoint_Item')?['Status']?['Value']",
+                        "Provisioned"
+                      ]
+                    }
+                  ]
+                },
+                "type": "If"
+              },
+              "Delete_Hub_to_Spoke_Peering": {
+                "runAfter": {
+                  "Check_If_Fully_Provisioned": [
+                    "Succeeded",
+                    "Failed",
+                    "Skipped"
+                  ]
+                },
+                "type": "Http",
+                "inputs": {
+                  "authentication": {
+                    "audience": "https://management.azure.com",
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "method": "DELETE",
+                  "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-security-hub-northeurope/providers/Microsoft.Network/virtualNetworks/vnet-lebara-security-hub/virtualNetworkPeerings/hub-to-@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}?api-version=2024-01-01"
+                }
+              },
+              "Delete_Spoke_to_Hub_Peering": {
+                "runAfter": {
+                  "Delete_Hub_to_Spoke_Peering": [
+                    "Succeeded",
+                    "Failed",
+                    "Skipped"
+                  ]
+                },
+                "type": "Http",
+                "inputs": {
+                  "authentication": {
+                    "audience": "https://management.azure.com",
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "method": "DELETE",
+                  "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/providers/Microsoft.Network/virtualNetworks/@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}/virtualNetworkPeerings/@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}-to-hub?api-version=2024-01-01"
+                }
+              },
+              "Delete_VNet": {
+                "runAfter": {
+                  "Delete_Spoke_to_Hub_Peering": [
+                    "Succeeded",
+                    "Failed",
+                    "Skipped"
+                  ]
+                },
+                "type": "Http",
+                "inputs": {
+                  "authentication": {
+                    "audience": "https://management.azure.com",
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "method": "DELETE",
+                  "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/providers/Microsoft.Network/virtualNetworks/@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}?api-version=2024-01-01"
+                }
+              },
+              "Delete_NSG": {
+                "runAfter": {
+                  "Delete_VNet": [
+                    "Succeeded",
+                    "Failed",
+                    "Skipped"
+                  ]
+                },
+                "type": "Http",
+                "inputs": {
+                  "authentication": {
+                    "audience": "https://management.azure.com",
+                    "type": "ManagedServiceIdentity"
+                  },
+                  "method": "DELETE",
+                  "uri": "https://management.azure.com/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-d365-networking/providers/Microsoft.Network/networkSecurityGroups/nsg-@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}?api-version=2023-04-01"
+                }
+              },
+              "Get_IP_Pool_Items": {
+                "runAfter": {
+                  "Delete_NSG": [
+                    "Succeeded",
+                    "Failed"
+                  ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('b864f5bd-6b72-4520-add6-6ed56c7f4782'))}/items",
+                  "queries": {
+                    "$filter": "Title eq '@{body('Get_SharePoint_Item')?['Allocated_x0020_IP_x0020_Address']}'"
+                  }
+                }
+              },
+              "Release_IP_Back_to_Pool": {
+                "runAfter": {
+                  "Get_IP_Pool_Items": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                  "body": {
+                    "EnvironmentName": "",
+                    "ResourceGroup": "",
+                    "Status": {
+                      "Value": "Available"
+                    },
+                    "Title": "@body('Get_IP_Pool_Items')?['value']?[0]?['Title']",
+                    "VNetName": ""
+                  },
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "patch",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('b864f5bd-6b72-4520-add6-6ed56c7f4782'))}/items/@{encodeURIComponent(body('Get_IP_Pool_Items')?['value']?[0]?['ID'])}"
+                }
+              },
+              "Update_SharePoint_Final_Status": {
+                "runAfter": {
+                  "Release_IP_Back_to_Pool": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                  "body": {
+                    "Connection_x0020_Script": null,
+                    "Decommission_x0020_Token": null,
+                    "Deprovisioned_x0020_By": "@body('Get_SharePoint_Item')?['Author']?['Email']",
+                    "Deprovisioned_x0020_Date": "@formatDateTime(utcNow(), 'yyyy-MM-dd')",
+                    "Status": {
+                      "Value": "Deprovisioned"
+                    },
+                    "Title": "@body('Get_SharePoint_Item')?['Title']",
+                    "Token_x0020_Expiry": null,
+                    "VM_x0020_Name": null
+                  },
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "patch",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerOutputs()['queries']?['itemId'])}"
+                }
+              },
+              "Send_Success_Email": {
+                "runAfter": {
+                  "Update_SharePoint_Final_Status": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "authentication": {
+                    "type": "ManagedServiceIdentity",
+                    "audience": "https://graph.microsoft.com"
+                  },
+                  "body": {
+                    "saveToSentItems": false,
+                    "message": {
+                      "importance": "normal",
+                      "toRecipients": [
+                        {
+                          "emailAddress": {
+                            "address": "@body('Get_SharePoint_Item')?['Author']?['Email']"
+                          }
+                        }
+                      ],
+                      "ccRecipients": [
+                        {
+                          "emailAddress": {
+                            "address": "@body('Get_SharePoint_Item')?['Approver']?['Email']"
+                          }
+                        }
+                      ],
+                      "from": {
+                        "emailAddress": {
+                          "name": "Infrastructure Automation",
+                          "address": "infra.automation@lebara.com"
+                        }
+                      },
+                      "subject": "✅ Cleanup Complete: @{body('Get_SharePoint_Item')?['Title']}",
+                      "body": {
+                        "content": "<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\"><p>Hi @{body('Get_SharePoint_Item')?['Author']?['DisplayName']},</p><p>All networking resources for your <strong>@{body('Get_SharePoint_Item')?['Title']}</strong> environment have been successfully removed.</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; margin-top: 20px;\">Cleanup Summary</h3><table style=\"width: 100%; border-collapse: collapse;\"><tr><td style=\"padding: 8px 0; font-weight: 600; width: 40%;\">Project Name:</td><td style=\"padding: 8px 0;\">@{body('Get_SharePoint_Item')?['Title']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Virtual Network:</td><td style=\"padding: 8px 0;\">@{body('Get_SharePoint_Item')?['VNet_x0020_Name']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">IP Address:</td><td style=\"padding: 8px 0;\">@{body('Get_SharePoint_Item')?['Allocated_x0020_IP_x0020_Address']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Completion Time:</td><td style=\"padding: 8px 0;\">@{formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm:ss')} UTC</td></tr></table><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4;\">Resources Removed</h3><div style=\"background-color: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;\"><ul style=\"margin: 0; padding-left: 20px; color: #155724;\"><li>Virtual Network peerings deleted</li><li>Virtual Network removed</li><li>Network Security Group deleted</li><li>IP address returned to pool</li><li>SharePoint request archived</li></ul></div><p>The IP address <strong>@{body('Get_SharePoint_Item')?['Allocated_x0020_IP_x0020_Address']}</strong> is now available for future environments.</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4;\">Quick Links</h3><ul style=\"list-style: none; padding: 0;\"><li style=\"padding: 5px 0;\"><a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests/DispForm.aspx?ID=@{body('Get_SharePoint_Item')?['ID']}\" style=\"color: #0078d4; text-decoration: none;\">→ View Request in SharePoint</a></li></ul><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><p style=\"color: #666; font-size: 13px;\">Need assistance? Contact the Infrastructure Team: <a href=\"mailto:infrastructure@lebara.com\" style=\"color: #0078d4; text-decoration: none;\">infrastructure@lebara.com</a></p><p style=\"color: #666; font-size: 13px; margin-top: 30px;\"><strong>Infrastructure Automation</strong></p></div>",
+                        "contentType": "HTML"
+                      }
+                    }
+                  },
+                  "headers": {
+                    "Content-Type": "application/json"
+                  },
+                  "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail"
+                }
+              }
+            },
+            "runAfter": {},
+            "else": {
+              "actions": {
+                "Invalid_Token_Response": {
+                  "type": "Response",
+                  "kind": "Http",
+                  "inputs": {
+                    "body": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Invalid or Expired Link</title>\n    <style>\n        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 50px auto; padding: 30px; background: #f5f5f5; text-align: center; }\n        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n        .error { color: #d13438; font-size: 64px; }\n        h1 { color: #d13438; }\n        .btn { display: inline-block; padding: 15px 30px; margin: 20px 10px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"error\">⚠️</div>\n        <h1>Invalid or Expired Link</h1>\n        <p>This deprovisioning link is either invalid, has expired, or has already been used.</p>\n        <h3>Possible Reasons:</h3>\n        <ul style=\"text-align: left; display: inline-block;\">\n            <li>The link has expired (24-hour validity)</li>\n            <li>The environment has already been deprovisioned</li>\n            <li>The decommission request was cancelled</li>\n            <li>Invalid or tampered confirmation token</li>\n        </ul>\n        <p>If you still need to deprovision this environment, please initiate a new decommission request from SharePoint.</p>\n        <a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests\" class=\"btn\">Return to Environment Requests</a>\n    </div>\n</body>\n</html>",
+                    "headers": {
+                      "Content-Type": "text/html"
+                    },
+                    "statusCode": 403
+                  }
+                }
+              }
+            },
+            "expression": {
+              "and": [
+                {
+                  "equals": [
+                    "@triggerOutputs()['queries']?['confirmed']",
+                    "true"
+                  ]
+                }
+              ]
+            },
+            "type": "If"
+          }
+        },
+        "runAfter": {
+          "Get_SharePoint_Item": [
+            "Succeeded"
+          ]
+        },
+        "else": {
+          "actions": {
+            "Invalid_Token_Response_2": {
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "body": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Invalid or Expired Link</title>\n    <style>\n        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 700px; margin: 50px auto; padding: 30px; background: #f5f5f5; text-align: center; }\n        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n        .error { color: #d13438; font-size: 64px; }\n        h1 { color: #d13438; }\n        .btn { display: inline-block; padding: 15px 30px; margin: 20px 10px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"error\">⚠️</div>\n        <h1>Invalid or Expired Link</h1>\n        <p>This deprovisioning link is either invalid, has expired, or has already been used.</p>\n        <h3>Possible Reasons:</h3>\n        <ul style=\"text-align: left; display: inline-block;\">\n            <li>The link has expired (24-hour validity)</li>\n            <li>The environment has already been deprovisioned</li>\n            <li>The decommission request was cancelled</li>\n            <li>Invalid or tampered confirmation token</li>\n        </ul>\n        <p>If you still need to deprovision this environment, please initiate a new decommission request from SharePoint.</p>\n        <a href=\"https://lebara.sharepoint.com/sites/ERPConnectionsHub/Lists/Environment%20Requests\" class=\"btn\">Return to Environment Requests</a>\n    </div>\n</body>\n</html>",
+                "headers": {
+                  "Content-Type": "text/html"
+                },
+                "statusCode": 403
+              }
+            }
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@body('Get_SharePoint_Item')?['Decommission_x0020_Token']",
+                "@triggerOutputs()['queries']?['token']"
+              ]
+            },
+            {
+              "greater": [
+                "@body('Get_SharePoint_Item')?['Token_x0020_Expiry']",
+                "@formatDateTime(utcNow(), 'yyyy-MM-dd')"
+              ]
+            },
+            {
+              "equals": [
+                "@body('Get_SharePoint_Item')?['Status']?['Value']",
+                "Decommission - Awaiting Confirmation"
+              ]
+            }
+          ]
+        },
+        "type": "If"
+      }
+    },
+    "outputs": {}
+  },
+  "Parameters": {
+    "$connections": {
+      "Type": "Object",
+      "Value": {
+        "sharepointonline": {
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline",
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "connectionProperties": {}
+        }
+      },
+      "Metadata": null,
+      "Description": null
+    }
+  },
+  "Id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-deprovision-execute",
+  "Name": "la-d365-deprovision-execute",
+  "Type": "Microsoft.Logic/workflows",
+  "Location": "northeurope",
+  "Tags": null
+}

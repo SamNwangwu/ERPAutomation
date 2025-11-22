@@ -1,0 +1,155 @@
+{
+  "Sku": null,
+  "ProvisioningState": "Succeeded",
+  "CreatedTime": "2025-11-05T10:37:02.7571937Z",
+  "ChangedTime": "2025-11-21T20:45:10.3936726Z",
+  "State": "Enabled",
+  "Version": "08584378489750927594",
+  "AccessEndpoint": "https://prod-58.northeurope.logic.azure.com:443/workflows/f5d0c887f74e4dfc814af5d5a3de9683",
+  "IntegrationAccount": null,
+  "Definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "$connections": {
+        "defaultValue": {},
+        "type": "Object"
+      }
+    },
+    "triggers": {
+      "When_an_item_is_created_or_modified": {
+        "recurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "evaluatedRecurrence": {
+          "frequency": "Minute",
+          "interval": 1
+        },
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/onupdateditems"
+        }
+      }
+    },
+    "actions": {
+      "Check_Status": {
+        "actions": {
+          "Generate_Decommission_Token": {
+            "type": "Compose",
+            "inputs": "@guid()"
+          },
+          "Set_Token_Expiry": {
+            "runAfter": {
+              "Generate_Decommission_Token": [
+                "Succeeded"
+              ]
+            },
+            "type": "Compose",
+            "inputs": "@addHours(utcNow(), 24)"
+          },
+          "Update_SharePoint_Item": {
+            "runAfter": {
+              "Set_Token_Expiry": [
+                "Succeeded"
+              ]
+            },
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                }
+              },
+              "method": "patch",
+              "body": {
+                "Decommission_x0020_Token": "@outputs('Generate_Decommission_Token')",
+                "Token_x0020_Expiry": "@outputs('Set_Token_Expiry')"
+              },
+              "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://lebara.sharepoint.com/sites/ERPConnectionsHub'))}/tables/@{encodeURIComponent(encodeURIComponent('194aeb23-75c2-47ec-88c7-90db9c468681'))}/items/@{encodeURIComponent(triggerBody()?['ID'])}"
+            }
+          },
+          "Send_Confirmation_Email": {
+            "runAfter": {
+              "Update_SharePoint_Item": [
+                "Succeeded"
+              ]
+            },
+            "type": "Http",
+            "inputs": {
+              "method": "POST",
+              "uri": "https://graph.microsoft.com/v1.0/users/infra.automation@lebara.com/sendMail",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "message": {
+                  "subject": "⚠️ ACTION REQUIRED: Confirm Decommission of @{triggerBody()?['Title']}",
+                  "body": {
+                    "contentType": "HTML",
+                    "content": "<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\"><p>Hi @{triggerBody()?['Author']?['DisplayName']},</p><p>We received a request to <strong>permanently delete</strong> the following environment:</p><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; margin-top: 20px;\">Decommission Request</h3><table style=\"width: 100%; border-collapse: collapse;\"><tr><td style=\"padding: 8px 0; font-weight: 600; width: 40%;\">Project Name:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Title']}</td></tr><tr style=\"background-color: #f5f5f5;\"><td style=\"padding: 8px 0; font-weight: 600;\">Environment Type:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['EnvironmentType']?['Value']}</td></tr><tr><td style=\"padding: 8px 0; font-weight: 600;\">Requested By:</td><td style=\"padding: 8px 0;\">@{triggerBody()?['Author']?['DisplayName']}</td></tr></table><div style=\"background-color: #f8d7da; padding: 15px; margin: 15px 0; border-left: 4px solid #d13438;\"><strong>⚠️ WARNING: This action is irreversible.</strong><br>All resources, including the Virtual Machine and Data, will be permanently deleted.</div><hr style=\"border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;\"><h3 style=\"color: #0078d4; text-align: center;\">Confirm Deletion</h3><!-- BUTTONS START --><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"padding-top: 20px;\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" style=\"border-radius: 6px;\" bgcolor=\"#d13438\"><a href=\"https://prod-07.northeurope.logic.azure.com:443/workflows/0313ee73600a4ff097d780019fe47195/triggers/manual/paths/invoke?api-version=2016-10-01&amp;sp=%2Ftriggers%2Fmanual%2Frun&amp;sv=1.0&amp;sig=Vk-FBRBv2zCaz3c-HoGzuZLFQ-uFyXZDFYQ3ORB8PBQ&token=@{outputs('Generate_Decommission_Token')}&itemId=@{triggerBody()?['ID']}&confirmed=true\" target=\"_blank\" style=\"font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 50px; border-radius: 6px; border: 1px solid #d13438; display: inline-block; font-weight: bold;\"><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%; mso-text-raise: 30pt;\">&nbsp;</i><![endif]--><span style=\"mso-text-raise: 15pt;\">CONFIRM DELETION</span><!--[if mso]><i style=\"letter-spacing: 25px; mso-font-width: -100%;\">&nbsp;</i><![endif]--></a></td></tr></table></td></tr></table><!-- BUTTONS END --><p style=\"text-align: center; color: #6c757d; font-size: 13px; margin-top: 20px;\">If you did not request this, you can safely ignore this email.</p></div>"
+                  },
+                  "toRecipients": [
+                    {
+                      "emailAddress": {
+                        "address": "@{triggerBody()?['Author']?['Email']}"
+                      }
+                    }
+                  ],
+                  "from": {
+                    "emailAddress": {
+                      "address": "infra.automation@lebara.com",
+                      "name": "Infrastructure Automation"
+                    }
+                  }
+                },
+                "saveToSentItems": false
+              },
+              "authentication": {
+                "type": "ManagedServiceIdentity",
+                "audience": "https://graph.microsoft.com"
+              }
+            }
+          }
+        },
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@triggerBody()?['Status']?['Value']",
+                "Decommission - Awaiting Confirmation"
+              ]
+            }
+          ]
+        },
+        "type": "If"
+      }
+    }
+  },
+  "Parameters": {
+    "$connections": {
+      "Type": "Object",
+      "Value": {
+        "sharepointonline": {
+          "id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/providers/Microsoft.Web/locations/northeurope/managedApis/sharepointonline",
+          "connectionId": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Web/connections/sharepointonline",
+          "connectionName": "sharepointonline",
+          "connectionProperties": {}
+        }
+      },
+      "Metadata": null,
+      "Description": null
+    }
+  },
+  "Id": "/subscriptions/8cc0a954-47fb-4878-a768-e195dbd036b7/resourceGroups/rg-lebara-automation/providers/Microsoft.Logic/workflows/la-d365-deprovision-confirmation",
+  "Name": "la-d365-deprovision-confirmation",
+  "Type": "Microsoft.Logic/workflows",
+  "Location": "northeurope",
+  "Tags": {}
+}
