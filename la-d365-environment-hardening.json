@@ -1,6 +1,6 @@
 {
   "accessEndpoint": "https://prod-34.northeurope.logic.azure.com:443/workflows/0a19273d861d4c55b614bded2a0e3fe7",
-  "changedTime": "2025-11-21T20:09:13.5309461Z",
+  "changedTime": "2025-11-24T10:09:56.8745268Z",
   "createdTime": "2025-11-18T15:34:10.1688061Z",
   "definition": {
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
@@ -670,7 +670,7 @@
   },
   "provisioningState": "Succeeded",
   "resourceGroup": "rg-lebara-automation",
-  "state": "Enabled",
+  "state": "Disabled",
   "type": "Microsoft.Logic/workflows",
-  "version": "08584378511319614373"
+  "version": "08584376278886140948"
 }

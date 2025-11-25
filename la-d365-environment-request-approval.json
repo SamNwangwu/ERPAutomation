@@ -1,6 +1,6 @@
 {
   "accessEndpoint": "https://prod-35.northeurope.logic.azure.com:443/workflows/e4799741d95c4f028cd81beb060238ed",
-  "changedTime": "2025-11-21T17:39:48.2621969Z",
+  "changedTime": "2025-11-24T10:12:22.2218324Z",
   "createdTime": "2025-11-17T11:23:19.5334569Z",
   "definition": {
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
@@ -44,6 +44,11 @@
                       {
                         "emailAddress": {
                           "address": "Samuel.Nwangwu@lebara.com"
+                        }
+                      },
+                      {
+                        "emailAddress": {
+                          "address": "Roopakala.S@lebara.com"
                         }
                       }
                     ]
@@ -374,5 +379,5 @@
     " Purpose": "Azure Infra"
   },
   "type": "Microsoft.Logic/workflows",
-  "version": "08584378600972259784"
+  "version": "08584376277432637936"
 }
